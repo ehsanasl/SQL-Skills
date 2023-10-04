@@ -1,0 +1,419 @@
+---------------ShowCase---------------
+
+---------------Identify any significant salary changes for an employee during their tenure.---------------
+
+WITH SalaryChanges AS (
+    SELECT
+        E.[EmployeeName],
+        S.[SalaryAmount],
+        S.[EffectiveDate],
+        LAG(S.[SalaryAmount]) OVER (PARTITION BY E.[EmployeeID] ORDER BY S.[EffectiveDate]) AS PreviousSalary
+    FROM
+        [Employees] E
+    JOIN
+        [Salaries] S ON E.[EmployeeID] = S.[EmployeeID]
+    WHERE
+        E.[EmployeeName] = 'Mia Rodriguez'  -- We canrReplace with the specific employee's name
+)
+SELECT
+    [EmployeeName],
+    [SalaryAmount] AS CurrentSalary,
+    [EffectiveDate] AS CurrentSalaryEffectiveDate,
+
+    CASE
+        WHEN PreviousSalary IS NULL THEN 'Initial Salary'
+        WHEN [SalaryAmount] > PreviousSalary THEN 'Salary Increase'
+        WHEN [SalaryAmount] < PreviousSalary THEN 'Salary Decrease'
+        ELSE 'No Change'
+    END AS SalaryChangeType,
+    CASE
+        WHEN PreviousSalary IS NOT NULL THEN PreviousSalary
+        ELSE [SalaryAmount]
+    END AS PreviousSalary,
+    CASE
+        WHEN PreviousSalary IS NOT NULL THEN [EffectiveDate]
+        ELSE NULL
+    END AS PreviousSalaryEffectiveDate
+	
+FROM
+    SalaryChanges
+ORDER BY
+    [EffectiveDate] ASC;
+
+	
+
+---------------Find departments with an average salary greater than $50,000---------------
+WITH AVGSaleryTable AS(
+SELECT 
+	D.[DepartmentName],
+	AVG(S.[SalaryAmount]) AS AverageSalery
+FROM [Departments] D
+JOIN [Employees] E ON E.[DepartmentID]=D.[DepartmentID]
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+GROUP BY D.[DepartmentName]
+)
+SELECT 
+	AVGS.[DepartmentName],
+	AVGS.AverageSalery
+FROM 
+	AVGSaleryTable AVGS
+WHERE 
+ AVGS.AverageSalery > 50000
+
+ --------------- Departments with salaries greater than $60000---------------
+ SELECT 
+	D.[DepartmentName],
+	AVG(S.[SalaryAmount]) AS AverageSalery
+FROM [Departments] D
+JOIN [Employees] E ON E.[DepartmentID]=D.[DepartmentID]
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+GROUP BY D.[DepartmentName]
+HAVING AVG(S.[SalaryAmount])> 60000
+
+---------------Assign a unique row number to each row within a specific partition---------------
+
+SELECT
+	E.EmployeeName,
+	S.SalaryAmount,
+    ROW_NUMBER() OVER (ORDER BY SalaryAmount DESC) AS RowNum
+FROM Employees E
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+
+---------------Rank employees by salary and assign the same rank to employees with equal salaries---------------
+
+SELECT
+	E.EmployeeName,
+	RANK() OVER (ORDER BY SalaryAmount DESC) AS Rank,
+	DENSE_RANK() OVER (ORDER BY SalaryAmount DESC) AS DenseRank
+FROM Employees E
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+
+---------------Divide employees into quartiles based on salary---------------
+SELECT E.EmployeeName,
+	NTILE(4) OVER (ORDER BY SalaryAmount) AS Quartiles
+FROM Employees E
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+
+---------------top Five highest-paid employees in each department---------------
+
+ SELECT TOP 5
+	E.[EmployeeName],
+	DENSE_RANK() OVER (PARTITION BY D.[DepartmentName] ORDER BY SalaryAmount) AS RowN
+FROM [Departments] D
+JOIN [Employees] E ON E.[DepartmentID]=D.[DepartmentID]
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+ORDER BY SalaryAmount
+
+---------------Creating Index for Employee---------------
+CREATE INDEX idx_Name ON Employees ([EmployeeName])
+
+---------------Find departments with an average salary greater than $50,000---------------
+
+---------------First Method
+WITH AVGSaleryTable AS(
+SELECT 
+	D.[DepartmentName],
+	AVG(S.[SalaryAmount]) AS AverageSalery
+FROM [Departments] D
+JOIN [Employees] E ON E.[DepartmentID]=D.[DepartmentID]
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+GROUP BY D.[DepartmentName]
+)
+SELECT 
+	AVGS.[DepartmentName],
+	AVGS.AverageSalery
+FROM 
+	AVGSaleryTable AVGS
+WHERE 
+ AVGS.AverageSalery > 50000
+
+---------------Second MEthod
+ SELECT 
+	D.[DepartmentName],
+	AVG(S.[SalaryAmount]) AS AverageSalery
+FROM [Departments] D
+JOIN [Employees] E ON E.[DepartmentID]=D.[DepartmentID]
+JOIN [Salaries] S ON E.[EmployeeID]=S.[EmployeeID]
+GROUP BY D.[DepartmentName]
+HAVING AVG(S.[SalaryAmount]) > 50000
+
+
+---------------Transaction---------------
+SELECT * FROM [dbo].[Salaries]
+
+BEGIN TRY
+	BEGIN TRANSACTION [TRAN!]
+UPDATE [Salaries]
+SET TerminationDate= '01-01-2023'
+WHERE EmployeeID=1
+
+UPDATE [Salaries]
+SET [SalaryAmount]=59999
+WHERE [SalaryAmount]>60000
+
+COMMIT TRANSACTION [TRAN!]
+PRINT 'SUCCESSFUL'
+END TRY
+
+BEGIN CATCH 
+ROLLBACK TRANSACTION [TRAN!]
+PRINT 'Unsuccessful'
+END CATCH
+
+
+---------------Date Functionalities---------------
+
+SELECT GETDATE() AS CurrentDateTime
+SELECT CONVERT(DATE, GETDATE()) AS CurrentDate
+SELECT CONVERT(TIME, GETDATE()) AS CurrentTime
+SELECT DATEDIFF(YEAR, '1986-02-03', GETDATE()) AS Age
+
+SELECT 
+	DATEADD(DAY, -7, S.[EffectiveDate])AS Lastweek, 
+	S.EmployeeID
+FROM 
+	[dbo].[Salaries] S
+WHERE
+	[EffectiveDate] BETWEEN '2021-01-01' AND '2023-01-01'
+
+---------------First day of the month
+	SELECT 
+ DATEADD(DAY, 1, EOMONTH(GETDATE(),-1))
+
+ ---------------WEEKDAY
+
+ SELECT
+ DATENAME(WEEKDAY,GETDATE())
+
+---------------TRY CATCH---------------
+
+
+ BEGIN TRY
+
+
+    INSERT INTO Employees ([EmployeeID], [EmployeeName], [HireDate])
+    VALUES (50, 'John Doe', '2023-08-15');
+    INSERT INTO Employees ([EmployeeID], [EmployeeName], [HireDate])
+    VALUES (60, 'Jane Smith', '2023-08-16'); -- Duplicate EmployeeID
+
+END TRY
+
+BEGIN CATCH
+ SELECT ERROR_MESSAGE() AS ERROR
+END CATCH
+
+BEGIN TRY
+    BEGIN TRAN;
+    
+    UPDATE Salaries
+    SET SalaryAmount = SalaryAmount + 1000
+    WHERE EmployeeID = 99;
+    
+    COMMIT;
+
+END TRY
+BEGIN CATCH
+    ROLLBACK; -- Rollback the transaction if an error occurs
+    SELECT ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+
+---------------FETCH---------------
+SELECT * FROM [dbo].[Employees]
+ORDER BY [HireDate]
+OFFSET 10 ROWS
+FETCH NEXT 5 ROWS ONLY
+
+---------------2 oldest emploees joined the company---------------
+SELECT TOP 2
+RANK() OVER (ORDER BY HireDate) AS RANKED,
+EmployeeName,
+[HireDate]
+FROM [dbo].[Employees]
+ORDER BY [HireDate]
+
+---------------SPLIT FIRST AND LAST NAME---------------
+-- first method
+SELECT 
+    SUBSTRING([EmployeeName], 1, CHARINDEX(' ', [EmployeeName]) - 1) AS first_name,
+    SUBSTRING([EmployeeName], CHARINDEX(' ', [EmployeeName]) + 1, LEN([EmployeeName])) AS last_name
+FROM employees;
+---------------second method---------------
+SELECT
+    [EmployeeName],
+    LEFT([EmployeeName], CHARINDEX(' ', [EmployeeName]) - 1) AS FirstName,
+    RIGHT([EmployeeName], LEN([EmployeeName]) - CHARINDEX(' ', [EmployeeName])) AS LastName
+FROM Employees;
+
+---------------Stored Procedure for the first and last name ---------------
+
+CREATE PROCEDURE FirstLastName
+AS
+BEGIN
+SELECT
+    [EmployeeName],
+	LEFT([EmployeeName], CHARINDEX(' ', [EmployeeName])-1) as firstname,
+	LEN([EmployeeName]),
+     CHARINDEX(' ', [EmployeeName]),
+	 right([EmployeeName],LEN([EmployeeName])-CHARINDEX(' ',[EmployeeName])) as lastname
+FROM Employees;
+END
+
+
+EXEC FirstLastName
+
+---------------Create a table to hold the result---------------
+CREATE TABLE ResultTable
+(FirstName NVARCHAR(50)
+, LastName NVARCHAR(50)
+);
+
+---------------Execute the stored procedure and insert the result---------------
+INSERT INTO ResultTable
+EXEC FirstLastName;
+
+--------------- Query the result---------------
+SELECT FirstName FROM ResultTable;
+
+---------------Replace blanks---------------
+
+CREATE VIEW Blanks
+AS
+select [EmployeeName],
+case
+when [Gender] is null then [EmployeeName]
+else [Gender]
+end as genderd
+from [dbo].[Employees]
+
+SELECT * FROM Blanks
+
+
+--------------- Window function with Aggregation---------------
+select *,
+AVG([SalaryAmount]) OVER (PARTITION BY EmployeeID) AS MaxSalaries
+from [Salaries]
+
+---------------Stored procedure with parameter---------------
+DROP PROC EmployeeInfo2
+CREATE PROC EmployeeInfo2
+@Firstname NVARCHAR(50)
+
+AS
+BEGIN
+
+SELECT
+    [EmployeeName],
+	LEFT([EmployeeName], CHARINDEX(' ', [EmployeeName])-1) as firstname,
+	LEN([EmployeeName]),
+     CHARINDEX(' ', [EmployeeName]),
+	 right([EmployeeName],LEN([EmployeeName])-CHARINDEX(' ',[EmployeeName])) as lastname
+FROM Employees
+WHERE [EmployeeName]=@Firstname
+
+PRINT 'Employee Full name is replaced with the first name'
+
+END
+
+EXEC EmployeeInfo2
+@Firstname='John'
+
+
+---------------Scalar Function for Interest rate---------------
+---------------Create a scalar-valued function to calculate monthly interest rate
+CREATE FUNCTION CalculateInterestRate
+(
+    @Principal DECIMAL(18, 2),          
+    @AnnualInterestRate DECIMAL(5, 2),  
+    @LoanTermYears INT                  
+)
+RETURNS DECIMAL(8, 6)
+AS
+BEGIN
+    DECLARE @MonthlyInterestRate DECIMAL(8, 6);
+
+   ---------------Convert annual interest rate to monthly rate---------------
+    SET @MonthlyInterestRate = (@AnnualInterestRate / 100) / 12;
+
+    RETURN @MonthlyInterestRate;
+END;
+
+--------------- calculate the monthly interest rate for a given loan scenario like this---------------
+DECLARE @Principal DECIMAL(18, 2) = 10000.00;
+DECLARE @AnnualInterestRate DECIMAL(5, 2) = 5.25;
+DECLARE @LoanTermYears INT = 3;
+
+DECLARE @MonthlyRate DECIMAL(8, 6);
+
+---------------Call the function to get the monthly interest rate---------------
+SET @MonthlyRate = dbo.CalculateInterestRate(@Principal, @AnnualInterestRate, @LoanTermYears);
+
+--------------- Output the result---------------
+PRINT 'Monthly Interest Rate: ' + CAST(@MonthlyRate AS VARCHAR(20));
+
+---------------Create a scalar-valued function to calculate the square of a number---------------
+CREATE FUNCTION CalculateSquare
+(
+@Number INT
+)
+RETURNS INT
+
+
+AS
+	BEGIN
+			DECLARE @Square INT
+			SET @Square= @Number * @Number
+			RETURN @Square
+	END
+
+	---------------FUNCTION FOR METER TO CENTEMETER---------------
+CREATE FUNCTION MeterToCent2
+(
+@Meter INT
+)
+RETURNS INT
+
+AS
+	BEGIN
+			DECLARE @Centemeter INT
+			SET @Centemeter= @Meter*100
+			RETURN @Centemeter
+	END
+
+	DECLARE @Input INT = 5;  -- 2 meters
+DECLARE @Result INT;
+
+---------------Call the function to convert meters to centimeters---------------
+SET @Result = dbo.MeterToCent2(@Input);
+
+-- Output the result
+PRINT 'Centimeters: '  + CAST(@Result AS VARCHAR(10));
+
+---------------Trim text---------------
+
+SELECT RTRIM([EmployeeName])
+FROM [dbo].[Employees]
+WHERE [EmployeeName] LIKE 'JOHN%'
+
+--------------- Use IN---------------
+
+select * from [Employees] where [EmployeeName] IN ('hn','sh')
+
+--------------- Employee's salaries statistics---------------
+
+SELECT 
+    [EmployeeID],
+    YEAR([EffectiveDate]) AS [Year],
+    SUM([SalaryAmount]) AS [TotalSalarySpend],
+    COUNT([SalaryAmount]) AS [TotalTransactionCount],
+    AVG([SalaryAmount]) AS [AverageTransactionAmount]
+FROM [dbo].[Salaries]
+GROUP BY 
+    [EmployeeID],
+   YEAR( [EffectiveDate])
+
+
+
+
+
+
+
